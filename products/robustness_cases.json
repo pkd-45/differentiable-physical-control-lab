@@ -1,0 +1,128 @@
+[
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 0.75,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.1414078325033188,
+    "feedback_reference_rmse": 0.07215765118598938
+  },
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 0.75,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.1836169809103012,
+    "feedback_reference_rmse": 0.07545772194862366
+  },
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 1.0,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.10381671041250229,
+    "feedback_reference_rmse": 0.0722353458404541
+  },
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 1.0,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.15851938724517822,
+    "feedback_reference_rmse": 0.07550807297229767
+  },
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 1.25,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.09882505983114243,
+    "feedback_reference_rmse": 0.0725419893860817
+  },
+  {
+    "mass_factor": 0.85,
+    "damping_factor": 1.25,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.15579400956630707,
+    "feedback_reference_rmse": 0.07577317208051682
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 0.75,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.09290597587823868,
+    "feedback_reference_rmse": 0.0712011456489563
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 0.75,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.08693224936723709,
+    "feedback_reference_rmse": 0.07208797335624695
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 1.0,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.075841523706913,
+    "feedback_reference_rmse": 0.07096733897924423
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 1.0,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.07261165976524353,
+    "feedback_reference_rmse": 0.07215040922164917
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 1.25,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.08817043155431747,
+    "feedback_reference_rmse": 0.07126013189554214
+  },
+  {
+    "mass_factor": 1.0,
+    "damping_factor": 1.25,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.08909227699041367,
+    "feedback_reference_rmse": 0.0726369321346283
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 0.75,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.15539568662643433,
+    "feedback_reference_rmse": 0.11577742546796799
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 0.75,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.11610153317451477,
+    "feedback_reference_rmse": 0.1100035011768341
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 1.0,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.15351858735084534,
+    "feedback_reference_rmse": 0.10978616774082184
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 1.0,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.1180550754070282,
+    "feedback_reference_rmse": 0.10483992099761963
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 1.25,
+    "stiffness_factor": 0.9,
+    "open_loop_rmse": 0.16142337024211884,
+    "feedback_reference_rmse": 0.10533297806978226
+  },
+  {
+    "mass_factor": 1.15,
+    "damping_factor": 1.25,
+    "stiffness_factor": 1.1,
+    "open_loop_rmse": 0.13239945471286774,
+    "feedback_reference_rmse": 0.1011422872543335
+  }
+]

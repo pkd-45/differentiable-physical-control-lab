@@ -1,0 +1,19 @@
+{
+  "model": "2-D controlled Duffing oscillator",
+  "optimised_open_loop_rmse": 0.0669621154665947,
+  "feedback_reference_rmse": 0.0714801475405693,
+  "feedback_reference_objective": 0.015671787783503532,
+  "feedback_reference_kp": 15.0,
+  "feedback_reference_kd": 6.0,
+  "robustness_cases": 18,
+  "open_loop_robustness_median_rmse": 0.11707830429077148,
+  "open_loop_robustness_p95_rmse": 0.16475241184234615,
+  "open_loop_robustness_max_rmse": 0.1836169809103012,
+  "feedback_robustness_median_rmse": 0.07404732704162598,
+  "feedback_robustness_p95_rmse": 0.11086958982050418,
+  "feedback_robustness_max_rmse": 0.11577742546796799,
+  "peak_force": 3.534233570098877,
+  "peak_force_component": 2.4992313385009766,
+  "rms_force_slew": 0.1647423654794693,
+  "final_objective": 0.013405181467533112
+}
