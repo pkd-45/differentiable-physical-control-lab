@@ -1,16 +1,19 @@
 # Differentiable Physical Control Lab
 
-A compact, auditable **JAX** benchmark for differentiable trajectory optimisation and model-based feedback on a bounded nonlinear dynamical system.
+A compact, auditable **JAX** repository with two differentiable-physics experiments:
 
-The plant is a two-dimensional force-actuated **Duffing oscillator**. The project is deliberately small enough to inspect end to end while still exposing the ingredients that matter in scientific control problems: nonlinear physics, differentiable simulation, constrained actuation, trajectory optimisation, state feedback, model mismatch, validation, and reproducibility.
+1. trajectory optimisation and model-based feedback on a nonlinear Duffing-type dynamical system; and
+2. a simplified single-sided acoustic-holography benchmark in which transducer phases are optimised through an acoustic field model and the Gor'kov radiation-force potential.
 
-> **Scope:** this is a methods benchmark. It is not an acoustic-levitation model, not a model of any specific experimental system, and not a hardware-control demonstration.
+The repository is intentionally small enough to inspect end to end. It is a methods demonstrator, not a validated model of a specific laboratory rig and not a hardware-control implementation.
 
-## Main result
+## Experiment 1 - nonlinear trajectory optimisation and feedback
 
-On the nominal model, gradient-based open-loop optimisation gives slightly lower tracking error and a lower composite objective than the tuned model-based feedback reference. Under deliberate mass, damping, and stiffness mismatch, the fixed open-loop sequence degrades more strongly, while state feedback remains substantially more robust.
+The first experiment uses a two-dimensional force-actuated Duffing-type oscillator. JAX differentiates through the numerical rollout while Adam refines a bounded two-axis open-loop force sequence. A nominal-model feed-forward + PD state-feedback controller provides a transparent comparison.
 
-| Metric | v0.2.1 reference value |
+On the nominal model, the optimised open-loop sequence has slightly lower tracking error and composite objective. Across a deterministic 18-case mass/damping/stiffness mismatch grid, the feedback reference has lower RMSE in every sampled case.
+
+| Metric | Stored reference value |
 |---|---:|
 | Differentiable open-loop tracking RMSE | 0.0670 |
 | Model-based feedback tracking RMSE | 0.0715 |
@@ -20,7 +23,7 @@ On the nominal model, gradient-based open-loop optimisation gives slightly lower
 | Feedback sampled maximum mismatch RMSE | 0.1158 |
 | Parameter-mismatch cases | 18 |
 
-The comparison is intentionally **not** presented as evidence that one controller is universally superior. It illustrates a standard physical trade-off: a trajectory optimised against a nominal differentiable model can perform very well on that model, while closed-loop state feedback can better reject model error.
+The result is deliberately narrow: it demonstrates a nominal-performance/model-mismatch trade-off for this benchmark. It is not a robust-control guarantee and does not show that either architecture is universally superior.
 
 <p align="center">
   <img src="products/trajectory.png" width="760" alt="Nominal target tracking comparison">
@@ -30,44 +33,58 @@ The comparison is intentionally **not** presented as evidence that one controlle
   <img src="products/robustness.png" width="760" alt="Open-loop and feedback tracking error across model-mismatch cases">
 </p>
 
+## Experiment 2 - simplified differentiable acoustic holography
+
+The second experiment uses an **8 x 8 single-sided 40 kHz phased array** in air. Each transducer is represented by an isotropic point source; the complex pressures are superposed and a small-particle Gor'kov potential is evaluated at a requested target 60 mm above the array. The default particle radius is 0.3 mm, giving `ka ~= 0.22` in the model.
+
+The optimisation variable is the vector of 64 transducer phases. The objective combines:
+
+- a low-pressure target term;
+- a penalty on non-zero acoustic radiation force at the requested target; and
+- a reward for the weakest **principal stiffness**, obtained from the eigenvalues of the full spatial Hessian of the Gor'kov potential.
+
+This is stricter than checking only the three diagonal Hessian entries: the local curvature test is positive definite only when all principal stiffnesses are positive.
+
+The stored v0.3.0 reference run gives:
+
+| Quantity at requested target | Phase-conjugation focus | Optimised hologram |
+|---|---:|---:|
+| Pressure magnitude (model units) | 945.31 | **0.798** |
+| Minimum principal stiffness (model units) | -1.50e-6 | **+7.75e-8** |
+| Positive-definite Gor'kov Hessian | no | **yes** |
+| Acoustic-force norm relative to focus | 1.0 | **5.97e-4** |
+| Linearised equilibrium offset | 4.62 mm | **5.26 um** |
+
+The requested point is therefore a low-pressure, locally restoring **near-equilibrium** in this simplified acoustic-radiation-force model. The pressure magnitude is about 1.18e3 times lower than at the phase-conjugation focus. The x-z field slice shows a twin-lobed structure around the low-pressure region, qualitatively consistent with the twin-trap family reported for single-sided acoustic arrays.
+
+<p align="center">
+  <img src="products/acoustic_hologram.png" width="900" alt="Phase-conjugation focus, optimised acoustic hologram, and optimisation history">
+</p>
+
+The experiment is inspired by the single-sided acoustic-trapping framework of Marzo et al., *Nature Communications* **6**, 8661 (2015), DOI: `10.1038/ncomms9661`. It is **not** a reproduction of that hardware model: this repository uses isotropic point sources rather than calibrated piston directivity and does not include gravity, reflections, streaming, transducer calibration, phase quantisation, particle back-scattering, or measured apparatus data.
+
+Accordingly, the repository does **not** claim physical levitation, hardware stability, calibrated pressure/stiffness values, or real-time control. It demonstrates differentiable phase optimisation through a transparent physics model.
+
 ## What is implemented
 
-- nonlinear physical simulation in **JAX**;
-- automatic differentiation through the complete numerical rollout;
-- Adam optimisation of an **open-loop** two-axis force sequence;
-- smooth per-component actuator saturation;
-- control-effort and force-slew regularisation;
-- nominal-model feed-forward plus **PD state feedback**;
-- deterministic gain selection for the feedback reference using the same nominal objective;
-- an 18-case mass/damping/stiffness mismatch grid;
-- explicit nominal-versus-mismatch comparison;
-- numerical, physical, optimisation, and constraint tests;
-- deterministic metrics and publication-style diagnostic plots;
-- a GitHub Actions workflow for linting, testing, and an end-to-end benchmark run.
-
-## Model
-
-For position vector **x**, the simulated plant is
-
-```text
-m x_ddot + c x_dot + k x + alpha ||x||^2 x = u
-```
-
-with state `[x, y, vx, vy]`. The cubic restoring term makes the dynamics nonlinear while retaining an analytic mechanical-energy function that can be used for validation.
-
-Each commanded force component is smoothly bounded as
-
-```text
-u = u_max * tanh(raw_control / u_max)
-```
-
-and the trajectory objective combines position-tracking error, applied-force effort, and force slew. Gradients are obtained with JAX automatic differentiation through a semi-implicit Euler rollout.
-
-The comparison controller uses the nominal Duffing model to compute feed-forward force from a **predefined reference trajectory and its precomputed kinematics**, then adds proportional position-error and derivative velocity-error feedback using the current simulated state. The state-feedback term is closed loop; the benchmark does not claim that the known reference trajectory itself is generated causally online.
+- JAX nonlinear physical simulation;
+- automatic differentiation through numerical physics;
+- Adam optimisation of a bounded open-loop control sequence;
+- smooth component-wise actuator saturation;
+- effort and slew regularisation;
+- nominal-model feed-forward + PD state feedback;
+- deterministic gain selection for the feedback reference;
+- an 18-case plant-parameter mismatch sweep;
+- single-sided phased-array pressure superposition;
+- Gor'kov small-particle potential and acoustic radiation force;
+- full spatial Hessian and principal-stiffness evaluation;
+- seeded Adam optimisation of 64 acoustic phases;
+- numerical, physical and scientific-output validators;
+- GitHub Actions across Python 3.11-3.13, with end-to-end reference benchmarks on Python 3.11.
 
 ## Quick start
 
-The v0.2.1 reference run and CI target **Python 3.11**, and the package metadata requires Python 3.11 or newer. Python 3.11 is the environment validated end to end for this release.
+The package requires Python 3.11 or newer. Python 3.11 is the recorded reference environment for the v0.2.1 nonlinear-control release; CI checks supported Python versions from 3.11 through 3.13.
 
 ```bash
 python3.11 -m venv .venv
@@ -77,100 +94,86 @@ python -m pip install -e '.[dev]'
 
 ruff check .
 pytest -q
-python scripts/run_demo.py
+
+python scripts/run_demo.py --output-dir validation_runs/control
+python scripts/validate_outputs.py validation_runs/control
+
+python scripts/run_acoustic_demo.py --output-dir validation_runs/acoustic
+python scripts/validate_acoustic_outputs.py validation_runs/acoustic
 ```
 
-On Windows, activate the environment with `.venv\\Scripts\\activate` instead.
+The committed `products/` directory stores reference outputs. Use a `validation_runs/` directory for independent reproduction so the committed products are not overwritten.
 
-The benchmark writes reproducible outputs to `products/`:
+## Models in brief
 
-- `metrics.json` — headline numerical results;
-- `robustness_cases.json` — all 18 parameter-mismatch cases;
-- `trajectory.png` — nominal target tracking;
-- `optimisation_history.png` — objective convergence;
-- `robustness.png` — mismatch-error comparison;
-- `worst_case_comparison.png` — trajectory behaviour in the worst open-loop mismatch case.
+### Duffing-type plant
 
-To inspect the headline metrics:
+For position vector **x**,
 
-```bash
-python -m json.tool products/metrics.json
+```text
+m x_ddot + c x_dot + k x + alpha ||x||^2 x = u
 ```
 
-To validate without overwriting the committed reference products, use:
+with state `[x, y, vx, vy]`. The cubic restoring term makes the dynamics nonlinear while retaining an analytic mechanical-energy function. Each applied control component is smoothly bounded with a `tanh` actuator map. See [`docs/MODEL_ASSUMPTIONS.md`](docs/MODEL_ASSUMPTIONS.md) for the exact information pattern and numerical assumptions.
 
-```bash
-python scripts/run_demo.py --output-dir validation_runs/manual
+### Acoustic benchmark
+
+For a phase vector `phi`, the simplified pressure field is the coherent sum of isotropic point-source contributions. The Gor'kov potential `U` is computed from complex pressure and its spatial derivatives. The model radiation force is
+
+```text
+F_acoustic = -grad(U)
 ```
+
+and the local curvature is assessed from the eigenvalues of `Hessian(U)`. Positive eigenvalues in all three principal directions indicate a locally restoring Gor'kov potential; a separate force penalty drives the requested target close to a stationary point.
+
+Because gravity is omitted, this criterion is a **local acoustic trapping criterion inside the model**, not a claim of levitation against weight.
 
 ## Validation
 
-The tests and benchmark check more than whether the code executes. They cover:
+The repository has **23 tests**: 13 for the nonlinear-control experiment and 10 for the acoustic module. They cover physical invariants, gradients, numerical behaviour, array geometry, small-`ka` applicability, Hessian finite-difference agreement, deterministic seeded optimisation, positive-definite local curvature, pressure-node formation and near-equilibrium force balance.
 
-- bounded actuator components;
-- preservation of the zero equilibrium under zero input;
-- mechanical-energy decay for the unforced damped system;
-- timestep-refinement behaviour;
-- malformed-input rejection;
-- finite autodiff gradients;
-- finite single-step objectives;
-- reduction of the nominal optimisation objective from its warm start;
-- bounded optimised force;
-- closed-loop response under plant mismatch;
-- complete and finite evaluation of the 18-case mismatch grid.
+The two generated-product validators add higher-level checks after complete benchmark runs.
 
-The mismatch grid varies:
+See:
 
-- mass by factors `0.85, 1.00, 1.15`;
-- damping by factors `0.75, 1.00, 1.25`;
-- linear stiffness by factors `0.90, 1.10`.
-
-See [`docs/VALIDATION.md`](docs/VALIDATION.md) for the validation logic and [`docs/MODEL_ASSUMPTIONS.md`](docs/MODEL_ASSUMPTIONS.md) for the scientific limitations.
+- [`docs/VALIDATION.md`](docs/VALIDATION.md) - what the tests and stored results establish;
+- [`docs/MODEL_ASSUMPTIONS.md`](docs/MODEL_ASSUMPTIONS.md) - scientific scope and omitted physics;
+- [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) - environments and reproduction procedure.
 
 ## What is not claimed
 
 This repository does **not** claim:
 
-- acoustic-radiation-force or acoustic-field fidelity;
-- modelling of a transducer array or experimental apparatus;
-- hardware-in-the-loop or laboratory validation;
-- real-time control performance;
-- reinforcement learning;
-- a learned surrogate or neural dynamics model;
-- robust optimisation or a formal robust-control guarantee;
-- universal superiority of the optimised open-loop sequence over feedback control.
-
-The open-loop optimiser has access to the complete target trajectory. The feedback reference uses the same known reference through precomputed kinematics and current-state feedback. The comparison is therefore a controlled methods benchmark, not a contest between information-matched production controllers.
+- laboratory or hardware validation of the acoustic model;
+- calibrated acoustic pressure, force or stiffness values;
+- levitation against gravity;
+- measured transducer directivity or apparatus fidelity;
+- acoustic streaming, nonlinear acoustics, scattering or reflections;
+- hardware-in-the-loop operation or real-time timing guarantees;
+- formal closed-loop stability or robust-control guarantees;
+- reinforcement-learning capability;
+- global optimality of either Adam optimisation problem;
+- universal superiority of open-loop optimisation or feedback control.
 
 ## Repository map
 
 ```text
-src/physctrl/dynamics.py     nonlinear plant, actuator map, integration, energy
-src/physctrl/control.py      objective, autodiff optimisation, feedback reference
-src/physctrl/experiment.py   target, mismatch sweep, metrics, benchmark orchestration
-tests/                       numerical and physical regression tests
-products/                    deterministic reference metrics and figures
-docs/                        assumptions, validation, reproducibility
-.github/workflows/ci.yml     automated hygiene/metadata/lint/test/demo workflow
-scripts/check_source_tree.py     frozen-tree hygiene check
+src/physctrl/dynamics.py          nonlinear Duffing-type plant and integration
+src/physctrl/control.py           trajectory objective, optimisation, feedback
+src/physctrl/experiment.py        target, mismatch sweep, benchmark orchestration
+src/physctrl/acoustic.py          phased-array field, Gor'kov model, phase optimisation
+scripts/run_demo.py               nonlinear-control reference experiment
+scripts/validate_outputs.py       nonlinear generated-product validator
+scripts/run_acoustic_demo.py      acoustic-hologram reference experiment
+scripts/validate_acoustic_outputs.py acoustic generated-product validator
+scripts/check_source_tree.py      release-tree hygiene check
 scripts/check_package_metadata.py installed-package metadata check
-scripts/validate_outputs.py     generated-product/scientific-behaviour check
+tests/                            numerical and physical regression tests
+products/                         deterministic reference metrics and figures
+docs/                             assumptions, validation and reproducibility
+.github/workflows/ci.yml          automated compatibility and benchmark workflow
 ```
 
-## Reproducibility and interpretation
+## Licence
 
-The benchmark contains no random sampling in the optimiser, gain search, target construction, or mismatch grid. Small floating-point differences can still occur across JAX/XLA versions and hardware. The tests therefore focus on numerical and physical properties rather than requiring exact agreement in the last decimal place.
-
-See [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) for the environment and reproduction notes.
-
-## Purpose
-
-This repository is a portfolio-scale scientific-computing demonstrator: one inspectable example connecting a first-principles nonlinear model, differentiable numerical simulation, gradient-based optimisation, feedback control, actuator constraints, model-mismatch analysis, automated tests, and reproducible outputs.
-
-It is **not** presented as a publication, an acoustic-levitation implementation, or a production controller.
-
-## License
-
-The project source is released under the MIT License. Third-party Python dependencies are
-installed separately and retain their own licenses; no third-party source code is vendored in
-this repository.
+MIT. Dependencies retain their own licences; they are installed rather than vendored.

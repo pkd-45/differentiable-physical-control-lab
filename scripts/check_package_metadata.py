@@ -3,7 +3,7 @@ from importlib.metadata import metadata
 
 m = metadata("differentiable-physical-control-lab")
 assert m["Name"] == "differentiable-physical-control-lab"
-assert m["Version"] == "0.2.1"
+assert m["Version"] == "0.3.0"
 assert m["Requires-Python"] == ">=3.11"
 assert m["License-Expression"] == "MIT"
 assert "LICENSE" in (m.get_all("License-File") or [])

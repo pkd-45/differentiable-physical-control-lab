@@ -1,128 +1,135 @@
 # Validation strategy
 
-This benchmark separates three kinds of evidence that should not be conflated:
+The repository distinguishes **automated implementation checks** from **observed benchmark results**. Neither set of evidence is a proof of general controller optimality or hardware performance.
 
-1. **automated invariants and numerical sanity checks** enforced by `pytest`;
-2. **nominal benchmark observations** produced by the deterministic default run;
-3. **sampled model-mismatch observations** over a fixed 18-case parameter grid.
+## 1. Test inventory
 
-The test suite checks properties of the implementation. The benchmark figures and JSON files report observed performance for the stated model, target, optimiser settings, controller tuning grid, and mismatch grid. Neither is a proof of general controller superiority or formal robust stability.
+The v0.3.0 suite contains **23 tests**:
 
-## 1. Automated checks
+- 13 nonlinear-control tests;
+- 10 acoustic-holography tests.
 
-The repository currently contains 13 tests.
+### Nonlinear dynamics and control
 
-### Dynamics and numerical integration
+Tests cover:
 
-Tests verify that:
+- component-wise actuator bounds;
+- preservation of the zero equilibrium under zero input;
+- decay of mechanical energy in a damped unforced rollout;
+- timestep-refinement behaviour;
+- malformed-input rejection;
+- target/reference shape and finiteness;
+- finite autodiff gradients;
+- finite one-step objectives;
+- reduction of the nominal trajectory objective from its warm start;
+- bounded optimised force;
+- state-dependent feedback response under plant mismatch;
+- complete and finite evaluation of all 18 mismatch cases.
 
-- each applied force component respects the configured smooth actuator bound;
-- the zero state remains an equilibrium under zero input;
-- for the tested damped unforced rollout, discrete mechanical energy is non-increasing within a numerical tolerance and decays substantially over the run;
-- halving the time step from 0.02 to 0.01 and then to 0.005 reduces the final-state refinement difference, with the finer difference required to be less than 60% of the coarser difference;
-- malformed control arrays raise a `ValueError` rather than being silently accepted.
+These checks support the implementation of the stated benchmark, not a formal closed-loop stability theorem.
 
-The time-step test is evidence of convergence behaviour for this validation case. It is **not** a general error bound or a formal order-of-accuracy proof for every trajectory.
+### Acoustic model and optimisation
 
-### Target, objective, optimisation, and feedback
+Tests cover:
 
-Tests verify that:
+- centred planar 8 x 8 array geometry;
+- a default particle with `ka < 0.3`;
+- phase-conjugation focusing relative to random phases;
+- invariance of pressure magnitude to a global phase offset;
+- linear pressure scaling with the uncalibrated source-amplitude parameter;
+- lack of fully restoring local curvature for the phase-conjugation baseline;
+- finite non-zero gradients through the acoustic objective;
+- finite-difference agreement with autodiff second derivatives;
+- an optimised solution with a positive-definite Gor'kov Hessian, a low-pressure target, low residual acoustic force and a small linearised equilibrium offset;
+- deterministic optimisation for a fixed seed.
 
-- the default target begins at the initial position;
-- reference velocity and acceleration arrays have the expected shapes and finite values;
-- automatic differentiation of the trajectory objective returns a finite gradient with the correct shape;
-- the one-step objective remains finite;
-- optimisation from the model-based reference warm start reduces the same composite objective by at least 2% in the reduced test problem;
-- optimised applied-force components remain within the configured component limit;
-- feedback rollouts remain finite under a perturbed plant;
-- when plant mismatch changes the simulated state trajectory, subsequent feedback control commands change as well, distinguishing the state-feedback implementation from replay of a fixed open-loop sequence;
-- the robustness sweep contains all 18 configured cases and finite RMSE values.
+The positive-definite test uses eigenvalues of the **full Hessian**, not only its diagonal entries.
 
-These checks exercise implementation properties. They do not establish closed-loop stability for arbitrary parameters or disturbances.
+## 2. Nonlinear benchmark observations
 
-## 2. Nominal benchmark comparison
-
-The reference controller is not an arbitrary low-gain PD baseline. It contains:
-
-1. nominal-model feed-forward from the predefined target position, velocity, and acceleration;
-2. proportional feedback on position error;
-3. derivative feedback on velocity error;
-4. the same smooth actuator mapping used for the optimised sequence.
-
-A fixed 7 x 7 `(Kp, Kd)` grid is searched on the nominal plant using the same composite objective used by trajectory optimisation. The selected gains and nominal metrics are written to `products/metrics.json`.
-
-For the checked v0.2.1 reference run:
+The stored reference comparison gives:
 
 | Metric | Differentiable open loop | Feedback reference |
-| --- | ---: | ---: |
+|---|---:|---:|
 | tracking RMSE | 0.066962 | 0.071480 |
 | composite objective | 0.013405 | 0.015672 |
 
-The differentiable open-loop sequence therefore achieved both slightly lower nominal tracking RMSE and a lower composite objective in this particular benchmark. This is an **observed result**, not an assertion that open-loop optimisation is generally preferable to feedback control.
+The open-loop sequence is warm-started from the tuned feedback-reference command sequence and improves the nominal composite objective in this benchmark.
 
-The optimiser is initialised from the tuned reference-controller command sequence, so the nominal comparison should be interpreted as asking whether gradient-based trajectory optimisation can improve that warm start under the nominal differentiable model.
+Across the fixed 18-case mismatch grid:
 
-## 3. Model-mismatch sensitivity
-
-Both approaches are evaluated over the same fixed 18-case grid:
-
-- mass factors: `0.85, 1.00, 1.15`;
-- damping factors: `0.75, 1.00, 1.25`;
-- linear-stiffness factors: `0.90, 1.10`.
-
-For the differentiable method, the nominally optimised control sequence is replayed unchanged on each perturbed plant. For the feedback reference, the feed-forward calculation continues to use the nominal model, while the feedback terms are recomputed from the current perturbed simulated state.
-
-For the checked v0.2.1 run:
-
-| Sampled mismatch statistic | Fixed open loop | Feedback reference |
-| --- | ---: | ---: |
+| Sampled statistic | Fixed open loop | Feedback reference |
+|---|---:|---:|
 | median RMSE | 0.117078 | 0.074047 |
 | 95th-percentile RMSE | 0.164752 | 0.110870 |
 | maximum RMSE | 0.183617 | 0.115777 |
 
-The feedback reference had lower RMSE than the fixed open-loop sequence in **all 18 sampled mismatch cases** in the stored v0.2.1 result.
+The feedback reference has lower RMSE in all 18 stored mismatch cases. This supports only a sampled sensitivity conclusion; it is not a robust-control certificate.
 
-That result supports a narrow conclusion: for this model, target, tuning procedure, and sampled uncertainty grid, state feedback reduced sensitivity to the tested parameter mismatch relative to replaying the nominal open-loop sequence. It does **not** establish a robust-control guarantee or general superiority of the feedback controller.
+## 3. Acoustic benchmark observations
 
-Here, “maximum” or “worst case” means the largest value among the 18 sampled cases only. It is not a mathematical worst-case search over a continuous uncertainty set.
+The acoustic reference compares a phase-conjugation focus with the optimised 64-phase hologram at the requested target.
 
-## 4. Generated validation artefacts
+### Stored reference
 
-A successful default run writes:
+| Quantity | Focus baseline | Optimised hologram |
+|---|---:|---:|
+| pressure magnitude (model units) | 945.31 | 0.7983 |
+| minimum principal stiffness | -1.50e-6 | +7.75e-8 |
+| positive-definite Hessian | no | yes |
+| acoustic-force ratio to focus | 1.0 | 5.97e-4 |
+| linearised equilibrium offset | 4.62e-3 m | 5.26e-6 m |
 
-- `products/metrics.json` — nominal and aggregate mismatch metrics;
-- `products/robustness_cases.json` — all 18 parameter-factor combinations and RMSE values;
-- `products/trajectory.png` — nominal target and realised trajectories;
-- `products/optimisation_history.png` — objective history during Adam optimisation;
-- `products/robustness.png` — case-by-case mismatch comparison;
-- `products/worst_case_comparison.png` — trajectories for the sampled case with the largest open-loop RMSE.
+The generated-product validator additionally requires:
 
-The optimisation-history figure is diagnostic. Because Adam is not a monotone line-search method, the repository does not require every individual iteration to reduce the objective.
+- 64 transducers;
+- `ka < 0.3`;
+- pressure-node ratio > 50 relative to focus;
+- positive-definite full Gor'kov Hessian;
+- positive weakest principal stiffness;
+- target acoustic-force norm < 1% of the focus-force baseline;
+- linearised equilibrium offset < 1% of the wavelength;
+- reduced optimisation objective;
+- finite reported metrics.
 
-## 5. Reproduction checks
+The stored run comfortably meets those thresholds.
 
-The intended local checks are:
+### Interpretation boundary
 
-```bash
-pytest -v
-python -m compileall -q src tests
-python -m physctrl.experiment
-```
+The acoustic result establishes that the **simplified model** contains a low-pressure, locally restoring near-equilibrium at the requested point after phase optimisation. It does not establish physical levitation because gravity, calibrated acoustic amplitude/directivity and experimental validation are absent.
 
-The stored v0.2.1 release was reproduced on macOS with Python 3.11 and produced 13 passing tests and the metrics above. Exact final decimals may vary slightly with JAX/XLA versions and hardware, so automated tests target physical and numerical properties rather than hard-coding every benchmark decimal.
+The x-z pressure slice is qualitatively twin-lobed. It may be described as twin-trap-like or literature-inspired, but the visual pattern alone is not treated as a formal classification or hardware result.
 
-## Claims deliberately not made
+## 4. Generated products
 
-This repository does **not** claim:
+### Nonlinear-control products
 
-- real-time execution or timing guarantees;
-- experimental or hardware validation;
-- acoustic-levitation model fidelity;
-- formal closed-loop stability guarantees;
+- `metrics.json`
+- `robustness_cases.json`
+- `trajectory.png`
+- `optimisation_history.png`
+- `robustness.png`
+- `worst_case_comparison.png`
+
+### Acoustic products
+
+- `acoustic_metrics.json`
+- `acoustic_hologram.png`
+
+The acoustic JSON stores the baseline and optimised pressure, principal stiffnesses, force diagnostics, local equilibrium-offset estimate and optimiser metadata.
+
+## 5. Claims deliberately not made
+
+The validation evidence does **not** establish:
+
+- real-time execution guarantees;
+- acoustic hardware or laboratory validation;
+- levitation against gravity;
+- calibrated acoustic force/stiffness;
+- formal controller stability;
 - formal robust-control guarantees;
-- global optimality of the Adam-optimised sequence;
+- global optimality of the Adam solutions;
 - reinforcement-learning capability;
-- neural-network or learned-dynamics capability;
-- that either approach is generally superior outside the stated benchmark.
+- universal performance outside the stated models and parameter ranges.
 
-See `MODEL_ASSUMPTIONS.md` for the model, sensing, reference-preview, actuator, integration, and uncertainty assumptions that bound these validation results.
+See `MODEL_ASSUMPTIONS.md` for the assumptions that bound these results.

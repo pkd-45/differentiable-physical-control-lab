@@ -1,43 +1,56 @@
 # Reproducibility
 
-## Reproducibility scope
+This repository separates **recorded reference products** from **compatibility testing**. Exact floating-point identity across JAX/XLA versions and hardware is not required; physical and numerical invariants are.
 
-This repository is designed to make the **benchmark procedure** reproducible: install the package, run the automated checks, execute the deterministic benchmark, and regenerate the JSON results and figures in `products/`.
+## 1. Python support and CI
 
-The benchmark itself uses no random sampling or stochastic initialisation. The target trajectory, controller-gain grid, optimiser warm start, Adam update sequence, and 18-case parameter-mismatch grid are deterministic.
+Package metadata requires Python 3.11 or newer. GitHub Actions runs code-quality and test checks on:
 
-That does **not** imply bit-for-bit identical floating-point output on every machine. JAX/XLA versions, compiler behaviour, operating system, CPU architecture, and numerical libraries can change the last digits of floating-point results. The validation suite therefore checks physical and numerical properties rather than requiring exact decimal identity with the committed reference metrics.
+- Python 3.11;
+- Python 3.12;
+- Python 3.13.
 
-## Python support versus validated environment
+The two complete generated-product benchmarks run on the Python 3.11 CI job to avoid tripling the relatively expensive differentiable-physics compilation work.
 
-The package metadata declares:
+CI performs:
 
 ```text
-Python >= 3.11
+source-tree hygiene
+editable installation
+package-metadata validation
+Ruff
+pytest
+compileall
+nonlinear-control benchmark + product validator (Python 3.11)
+acoustic-hologram benchmark + product validator (Python 3.11)
 ```
 
-That is the package compatibility floor, not a statement that every supported Python/dependency combination has been independently validated.
+## 2. Recorded v0.2.1 nonlinear-control environment
 
-The reference v0.2.1 benchmark was independently reproduced on the author's Apple-silicon macOS system with:
+The v0.2.1 nonlinear-control release was independently reproduced on Apple-silicon macOS with:
 
-| Component | Reference version |
-|---|---:|
-| Python | 3.11.15 |
-| pip | 26.2.1 |
-| JAX | 0.10.2 |
-| jaxlib | 0.10.2 |
-| NumPy | 2.4.6 |
-| Matplotlib | 3.11.1 |
-| pytest | 9.1.1 |
-| Ruff | 0.16.2 |
+```text
+Python       3.11.15
+pip          26.2.1
+JAX          0.10.2
+jaxlib       0.10.2
+NumPy        2.4.6
+Matplotlib   3.11.1
+pytest       9.1.1
+Ruff         0.16.2
+```
 
-The complete package snapshot from that successful environment is recorded in [`requirements/reference-py311.txt`](../requirements/reference-py311.txt). It is an **environment snapshot**, not a cryptographically hashed universal lockfile: some wheels and low-level dependencies are platform-specific.
+The complete package snapshot is stored in `requirements/reference-py311.txt`.
 
-## Recommended reproduction path
+That run passed Ruff, 13 tests, the end-to-end nonlinear benchmark, scientific-output checks and the frozen-file manifest.
 
-Python 3.11 is recommended because it matches both the validated macOS run and the GitHub Actions configuration.
+## 3. v0.3.0 acoustic reference generation
 
-On macOS or Linux, with a `python3.11` executable available:
+The stored v0.3.0 acoustic products are generated deterministically with `seed=0`. The acoustic optimiser therefore contains explicit pseudorandom initialisation, unlike the nonlinear-control optimiser. Reproduction requires the seed as well as algorithm settings.
+
+The reference algorithm uses 1500 Adam steps and starts from phase conjugation plus a small seeded phase perturbation. The acceptance checks do not hard-code every final decimal. They require the scientific behaviour documented in `VALIDATION.md`.
+
+## 4. Standard reproduction
 
 ```bash
 python3.11 -m venv .venv
@@ -46,116 +59,73 @@ python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
 
 ruff check .
-python -m pytest -q
-python scripts/run_demo.py --output-dir validation_runs/manual
+pytest -q
+python -m compileall -q src tests scripts
+
+python scripts/run_demo.py --output-dir validation_runs/control
+python scripts/validate_outputs.py validation_runs/control
+
+python scripts/run_acoustic_demo.py --output-dir validation_runs/acoustic
+python scripts/validate_acoustic_outputs.py validation_runs/acoustic
 ```
 
-On Windows, activate the environment with:
-
-```text
-.venv\Scripts\activate
-```
-
-With the command above, a successful demo writes:
-
-```text
-validation_runs/manual/metrics.json
-validation_runs/manual/robustness_cases.json
-validation_runs/manual/trajectory.png
-validation_runs/manual/optimisation_history.png
-validation_runs/manual/robustness.png
-validation_runs/manual/worst_case_comparison.png
-```
-
-Running `python scripts/run_demo.py` without `--output-dir` writes to `products/` instead.
-
-Inspect the headline metrics with:
+On systems where JAX compilation causes high memory use when all tests share one long process, the test files may be run in separate invocations without changing the test definitions:
 
 ```bash
-python -m json.tool validation_runs/manual/metrics.json
+pytest -q tests/test_control.py tests/test_dynamics.py
+pytest -q tests/test_acoustic.py -m 'not slow'
+pytest -q tests/test_acoustic.py -m slow
 ```
 
-## Reproducing the reference package versions
+## 5. Reference observations
 
-For the closest software match to the validated macOS v0.2.1 run, create a fresh Python 3.11 environment and install the recorded snapshot before installing the local project without re-resolving dependencies:
+### Nonlinear-control experiment
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements/reference-py311.txt
-python -m pip install --no-deps -e .
-
-ruff check .
-python -m pytest -q
-python scripts/run_demo.py --output-dir validation_runs/manual
-```
-
-The snapshot is intended to record the successful reference environment. If a pinned wheel is unavailable on a different platform, use the normal installation path above and treat small numerical differences as expected unless the automated validation properties fail.
-
-## Reference numerical result
-
-The committed v0.2.1 benchmark reports approximately:
-
-| Metric | Reference value |
+| Metric | Stored value |
 |---|---:|
 | Optimised open-loop RMSE | 0.066962 |
 | Feedback-reference RMSE | 0.071480 |
-| Optimised composite objective | 0.013405 |
-| Feedback-reference composite objective | 0.015672 |
 | Open-loop mismatch median RMSE | 0.117078 |
 | Feedback mismatch median RMSE | 0.074047 |
 | Open-loop sampled maximum RMSE | 0.183617 |
 | Feedback sampled maximum RMSE | 0.115777 |
 | Mismatch cases | 18 |
 
-These values are **reference observations**, not exact-value test assertions. Interpretation and validation boundaries are documented in [`VALIDATION.md`](VALIDATION.md).
+### Acoustic-holography experiment
 
-## Continuous integration
+| Metric | Stored value |
+|---|---:|
+| Transducers | 64 |
+| Particle `ka` | 0.2198 |
+| Focus pressure magnitude (model units) | 945.31 |
+| Optimised pressure magnitude (model units) | 0.7983 |
+| Pressure-node ratio | 1184.1 |
+| Minimum principal stiffness (model units) | 7.75e-8 |
+| Acoustic-force ratio to focus | 5.97e-4 |
+| Linearised equilibrium offset | 5.26e-6 m |
 
-The GitHub Actions workflow uses Python 3.11 on GitHub's `ubuntu-latest` runner and performs:
+These values are observations for the reference configuration, not claims of calibrated hardware performance.
 
-```text
-frozen source-tree hygiene check
-editable package installation
-installed-package metadata check
-Ruff linting
-pytest validation
-Python compile check
-end-to-end benchmark execution in validation_runs/ci
-generated-product and headline scientific-behaviour validation
-```
+## 6. Numerical variation and acceptance
 
-The CI environment deliberately installs from the dependency ranges declared in `pyproject.toml`. It therefore tests compatibility with the currently resolved dependency set; it is **not** an immutable historical environment because `ubuntu-latest` and compatible package versions can change over time.
+A reproduction is scientifically acceptable when:
 
-The reference package snapshot exists separately so that these two purposes are not confused:
+1. installation succeeds;
+2. linting and tests pass;
+3. expected products are generated;
+4. all reported values are finite;
+5. the nonlinear generated-product validator passes;
+6. the acoustic validator passes; and
+7. no physical/numerical invariant in the tests fails.
 
-- **CI:** detect whether the project continues to work with current compatible dependencies;
-- **reference snapshot:** record the versions used for the validated v0.2.1 run.
+Small floating-point drift is expected across JAX/XLA versions, compilers and hardware. A changed scientific conclusion, failed invariant, missing product or non-finite value should be investigated rather than dismissed as ordinary numerical variation.
 
-## Determinism and numerical variation
+## 7. Frozen-file integrity
 
-There is no explicit random-number generator in the benchmark. Re-running with the same software/hardware stack should therefore follow the same algorithmic path.
+`MANIFEST.sha256` records the release-tree hashes. It should be regenerated only after the repository is frozen.
 
-Nevertheless, exact floating-point identity is not the scientific acceptance criterion. A reproduction should be considered successful when:
-
-1. installation completes;
-2. linting and automated tests pass;
-3. the end-to-end benchmark completes;
-4. all expected products are created;
-5. headline metrics remain qualitatively consistent with the documented nominal-versus-mismatch result; and
-6. no validation invariant in `tests/` fails.
-
-A materially different scientific conclusion, a failed physical/numerical invariant, non-finite output, or missing product should be investigated rather than dismissed as ordinary floating-point variation.
-
-## Repository integrity
-
-`MANIFEST.sha256` records the release-tree file hashes. It should be regenerated only after the repository contents are frozen for a release. Because documentation and validation files may change during development, a manifest from an earlier release should not be interpreted as valid for an edited working tree.
-
-For a frozen release tree, verify it with:
+Verify a frozen tree with:
 
 ```bash
 shasum -a 256 -c MANIFEST.sha256
 ```
-
-Every listed file should report `OK`.

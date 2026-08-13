@@ -12,9 +12,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality-and-benchmark:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -22,10 +26,10 @@ jobs:
       - name: Check frozen source-tree hygiene
         run: python3 scripts/check_source_tree.py .
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install package and development dependencies
@@ -39,14 +43,31 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Test
-        run: python -m pytest -q
-
       - name: Compile Python sources
         run: python -m compileall -q src tests scripts
 
-      - name: Run end-to-end benchmark
-        run: python scripts/run_demo.py --output-dir validation_runs/ci
+      - name: Nonlinear-control tests
+        run: python -m pytest -q tests/test_control.py tests/test_dynamics.py
 
-      - name: Validate benchmark products and scientific behaviour
-        run: python scripts/validate_outputs.py validation_runs/ci
+      - name: Acoustic tests without optimisation rollouts
+        run: python -m pytest -q tests/test_acoustic.py -m 'not slow'
+
+      - name: Acoustic optimisation tests
+        if: matrix.python-version == '3.11'
+        run: python -m pytest -q tests/test_acoustic.py -m slow
+
+      - name: Run nonlinear-control benchmark
+        if: matrix.python-version == '3.11'
+        run: python scripts/run_demo.py --output-dir validation_runs/ci-control
+
+      - name: Validate nonlinear-control benchmark
+        if: matrix.python-version == '3.11'
+        run: python scripts/validate_outputs.py validation_runs/ci-control
+
+      - name: Run simplified acoustic-hologram benchmark
+        if: matrix.python-version == '3.11'
+        run: python scripts/run_acoustic_demo.py --output-dir validation_runs/ci-acoustic
+
+      - name: Validate simplified acoustic-hologram benchmark
+        if: matrix.python-version == '3.11'
+        run: python scripts/validate_acoustic_outputs.py validation_runs/ci-acoustic

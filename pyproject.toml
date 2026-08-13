@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "differentiable-physical-control-lab"
-version = "0.2.1"
-description = "Auditable JAX trajectory optimisation for a constrained nonlinear physical system."
+version = "0.3.0"
+description = "Auditable JAX benchmarks for differentiable physical optimisation and acoustic holography."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -19,6 +19,7 @@ keywords = [
     "trajectory-optimisation",
     "control",
     "dynamical-systems",
+    "acoustic-holography",
     "scientific-computing",
 ]
 classifiers = [
@@ -26,6 +27,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -49,6 +52,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["slow: optimisation runs that take tens of seconds"]
 
 [tool.ruff]
 line-length = 100

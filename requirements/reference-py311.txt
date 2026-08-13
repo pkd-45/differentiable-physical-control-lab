@@ -1,4 +1,4 @@
-# Reference environment snapshot for the independently reproduced v0.2.0 macOS run.
+# Reference environment snapshot for the independently reproduced v0.2.1 nonlinear-control macOS run.
 # Python: 3.11.15
 # pip: 26.2.1
 # This is a version snapshot, not a hashed cross-platform lockfile.

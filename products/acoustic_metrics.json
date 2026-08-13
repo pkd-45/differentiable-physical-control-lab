@@ -1,0 +1,40 @@
+{
+  "model": "simplified single-sided 8x8 phased array, 40 kHz, Gor'kov potential",
+  "transducers": 64,
+  "target_height_m": 0.05999999865889549,
+  "wavelength_m": 0.008575,
+  "particle_radius_m": 0.0003,
+  "rayleigh_ka": 0.21981989412873187,
+  "focus_baseline": {
+    "pressure_magnitude_model_units": 945.3106689453125,
+    "gorkov_potential_model_units": -1.9147322616319684e-11,
+    "principal_stiffness_1": -1.498800202170969e-06,
+    "principal_stiffness_2": -1.4987999747972935e-06,
+    "principal_stiffness_3": 1.5363740146767668e-07,
+    "minimum_principal_stiffness": -1.498800202170969e-06,
+    "positive_definite_hessian": false,
+    "acoustic_force_norm_model_units": 7.093623466403187e-10,
+    "force_ratio_to_focus_baseline": 1.0,
+    "linearised_equilibrium_offset_m": 0.004617124795913696
+  },
+  "optimised_hologram": {
+    "pressure_magnitude_model_units": 0.7983245849609375,
+    "gorkov_potential_model_units": -1.4810985771163132e-11,
+    "principal_stiffness_1": 7.753563124879292e-08,
+    "principal_stiffness_2": 1.4842399878034485e-06,
+    "principal_stiffness_3": 1.671704012551345e-06,
+    "minimum_principal_stiffness": 7.753563124879292e-08,
+    "positive_definite_hessian": true,
+    "acoustic_force_norm_model_units": 4.2366945455368787e-13,
+    "force_ratio_to_focus_baseline": 0.0005972539656795561,
+    "linearised_equilibrium_offset_m": 5.262118065729737e-06
+  },
+  "pressure_node_ratio": 1184.11819797779,
+  "objective_initial": 2.3196628093719482,
+  "objective_final": -0.05171842873096466,
+  "optimiser": {
+    "algorithm": "Adam",
+    "steps": 1500,
+    "seed": 0
+  }
+}
